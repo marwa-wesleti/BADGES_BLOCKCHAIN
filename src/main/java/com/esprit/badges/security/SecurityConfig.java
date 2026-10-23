@@ -54,7 +54,7 @@ public class SecurityConfig {
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint((req, res, ex) -> write(json, res, 401, "Connexion requise"))
                         .accessDeniedHandler((req, res, ex) -> write(json, res, 403, "Action reservee a l'ecole")))
-                .addFilterBefore(new JwtAuthFilter(jwt, users), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthFilter(jwt, users, json), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

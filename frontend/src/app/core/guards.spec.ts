@@ -3,7 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRouteSnapshot, RouterStateSnapshot, UrlTree, provideRouter } from '@angular/router';
 import { AuthService } from './auth.service';
-import { guestGuard, roleGuard, safeReturnUrl } from './guards';
+import { guestGuard, passwordGuard, roleGuard, safeReturnUrl } from './guards';
 import { TokenStore } from './token.store';
 
 const route = {} as ActivatedRouteSnapshot;
@@ -26,7 +26,7 @@ describe('gardes de routes', () => {
     sessionStorage.clear();
   });
 
-  const run = (guard: ReturnType<typeof roleGuard> | typeof guestGuard, url = '/ecole/cours') =>
+  const run = (guard: ReturnType<typeof roleGuard> | typeof guestGuard | typeof passwordGuard, url = '/ecole/cours') =>
     TestBed.runInInjectionContext(() => guard(route, state(url))) as Promise<boolean | UrlTree>;
 
   it('personne n\'est connecte : retour a la connexion, en retenant la page voulue', async () => {
@@ -59,6 +59,44 @@ describe('gardes de routes', () => {
 
   it('connexion et inscription restent ouvertes aux visiteurs', async () => {
     expect(await run(guestGuard)).toBeTrue();
+  });
+
+  describe('mot de passe temporaire', () => {
+    const temporary = () => ({ ...user('ELEVE'), mustChangePassword: true });
+
+    it('un eleve au mot de passe temporaire est renvoye vers le changement, quelle que soit la page voulue', async () => {
+      auth.user.set(temporary());
+      expect(((await run(roleGuard('ELEVE'), '/eleve/documents')) as UrlTree).toString()).toBe('/mot-de-passe');
+      expect(((await run(roleGuard('ELEVE'), '/eleve')) as UrlTree).toString()).toBe('/mot-de-passe');
+    });
+
+    it("connexion et inscription l'envoient aussi vers le changement, pas vers son espace", async () => {
+      auth.user.set(temporary());
+      expect(((await run(guestGuard)) as UrlTree).toString()).toBe('/mot-de-passe');
+    });
+
+    it('un eleve sans mot de passe temporaire accede normalement a son espace', async () => {
+      auth.user.set({ ...user('ELEVE'), mustChangePassword: false });
+      expect(await run(roleGuard('ELEVE'))).toBeTrue();
+    });
+  });
+
+  describe('page de changement de mot de passe', () => {
+    it('est ouverte a un eleve connecte, temporaire ou non', async () => {
+      auth.user.set(user('ELEVE'));
+      expect(await run(passwordGuard, '/mot-de-passe')).toBeTrue();
+      auth.user.set({ ...user('ELEVE'), mustChangePassword: true });
+      expect(await run(passwordGuard, '/mot-de-passe')).toBeTrue();
+    });
+
+    it('renvoie un visiteur vers la connexion', async () => {
+      expect(((await run(passwordGuard, '/mot-de-passe')) as UrlTree).toString()).toBe('/connexion');
+    });
+
+    it("n'est pas pour l'ecole : son mot de passe se change dans .env", async () => {
+      auth.user.set(user('ECOLE'));
+      expect(((await run(passwordGuard, '/mot-de-passe')) as UrlTree).toString()).toBe('/ecole');
+    });
   });
 });
 

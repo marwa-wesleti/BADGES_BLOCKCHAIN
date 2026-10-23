@@ -1,5 +1,6 @@
 package com.esprit.badges.web;
 
+import com.esprit.badges.security.AuthUser;
 import com.esprit.badges.security.JwtService;
 import com.esprit.badges.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,6 +9,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +28,8 @@ public class AuthController {
             @NotBlank @Size(max = 200) String password) { }
 
     public record LoginRequest(@NotBlank String email, @NotBlank String password) { }
+
+    public record ChangePasswordRequest(@NotBlank @Size(max = 200) String currentPassword, @NotBlank @Size(max = 200) String newPassword) { }
 
     private final AuthService auth;
     private final JwtService jwt;
@@ -57,5 +61,16 @@ public class AuthController {
                 "user", Views.user(session.user()),
                 "token", session.token(),
                 "expiresInMinutes", jwt.ttlMinutes());
+    }
+
+    /**
+     * POST /api/auth/change-password : l'eleve choisit son propre mot de passe. Obligatoire apres une reinitialisation par
+     * l'ecole : tant qu'il n'est pas fait, le serveur refuse tout le reste (voir JwtAuthFilter).
+     */
+    @PostMapping("/change-password")
+    public Map<String, Object> changePassword(@Valid @RequestBody ChangePasswordRequest request,
+                                              @AuthenticationPrincipal AuthUser me, HttpServletRequest http) {
+        var user = auth.changePassword(me.email(), request.currentPassword(), request.newPassword(), http.getRemoteAddr());
+        return Api.ok("message", "Mot de passe change", "user", Views.user(user));
     }
 }

@@ -7,8 +7,8 @@ import { authInterceptor } from './auth.interceptor';
 import { ToastService } from './toast.service';
 import { TokenStore } from './token.store';
 
-const ELEVE = { id: 3, username: 'marwa', email: 'marwa@example.com', walletAddress: '0x61aa', role: 'ELEVE' };
-const ECOLE = { id: 1, username: 'ecole', email: 'ecole@example.com', walletAddress: '0x8101', role: 'ECOLE' };
+const ELEVE = { id: 3, username: 'marwa', email: 'marwa@example.com', walletAddress: '0x61aa', role: 'ELEVE' as const };
+const ECOLE = { id: 1, username: 'ecole', email: 'ecole@example.com', walletAddress: '0x8101', role: 'ECOLE' as const };
 
 describe('AuthService', () => {
   let auth: AuthService;
@@ -45,6 +45,53 @@ describe('AuthService', () => {
     expect(auth.user()?.username).toBe('marwa');
     expect(auth.homeUrl()).toBe('/eleve');
     expect(sessionStorage.getItem('badges.token')).toBe('jeton-123');
+  });
+
+  describe('mot de passe temporaire', () => {
+    const TEMPORAIRE = { ...ELEVE, mustChangePassword: true };
+
+    it('une connexion avec un mot de passe temporaire oriente vers le changement obligatoire', async () => {
+      const pending = auth.login('marwa@example.com', 'Tmp12345abcd');
+      http.expectOne('/api/auth/login').flush({ success: true, token: 't', user: TEMPORAIRE });
+      await pending;
+      expect(auth.mustChangePassword()).toBeTrue();
+      expect(auth.homeUrl()).toBe('/mot-de-passe');
+    });
+
+    it("changer son mot de passe leve l'obligation et renvoie vers l'espace eleve", async () => {
+      auth.user.set(TEMPORAIRE);
+      const pending = auth.changePassword('Tmp12345abcd', 'MonNouveauMdp9');
+      const request = http.expectOne('/api/auth/change-password');
+      expect(request.request.body).toEqual({ currentPassword: 'Tmp12345abcd', newPassword: 'MonNouveauMdp9' });
+      request.flush({ success: true, user: { ...ELEVE, mustChangePassword: false } });
+      expect((await pending).ok).toBeTrue();
+      expect(auth.mustChangePassword()).toBeFalse();
+      expect(auth.homeUrl()).toBe('/eleve');
+    });
+
+    it("un changement refuse laisse l'obligation en place", async () => {
+      auth.user.set(TEMPORAIRE);
+      const pending = auth.changePassword('faux', 'MonNouveauMdp9');
+      http.expectOne('/api/auth/change-password').flush({ success: false, message: 'x' }, { status: 401, statusText: 'Unauthorized' });
+      expect((await pending).ok).toBeFalse();
+      expect(auth.mustChangePassword()).toBeTrue();
+    });
+
+    it("si l'ecole reinitialise le mot de passe pendant la session : on previent et on renvoie vers le changement", () => {
+      auth.user.set(ELEVE);
+      auth.requirePasswordChange();
+      expect(auth.mustChangePassword()).toBeTrue();
+      expect(TestBed.inject(ToastService).toasts()[0].text).toContain('réinitialisé');
+      expect(router.navigateByUrl).toHaveBeenCalledWith('/mot-de-passe');
+    });
+
+    it("restaurer une session au mot de passe temporaire (rechargement de page) garde l'obligation", async () => {
+      tokens.set('jeton');
+      const pending = auth.ready();
+      http.expectOne('/api/me').flush({ success: true, user: TEMPORAIRE, badges: [], nftBadges: [] });
+      await pending;
+      expect(auth.mustChangePassword()).toBeTrue();
+    });
   });
 
   it('le compte ecole est oriente vers l\'espace ecole', async () => {

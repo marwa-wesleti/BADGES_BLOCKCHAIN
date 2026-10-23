@@ -87,6 +87,16 @@ describe('LoginPage', () => {
     expect(router.navigateByUrl).toHaveBeenCalledWith('/eleve');
   });
 
+  it('un eleve connecte avec un mot de passe temporaire est envoye choisir le sien, pas dans son espace', async () => {
+    const fixture = await setup({ retour: '/eleve/documents' });
+    await submit(fixture, 'marwa@example.com', 'Tmp12345abcd');
+    http.expectOne('/api/auth/login').flush({ success: true, token: 't', user: { ...ELEVE, mustChangePassword: true } });
+    await settle(fixture);
+    expect(router.navigateByUrl).toHaveBeenCalledTimes(1);
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/mot-de-passe'); // meme avec une page de retour : le changement passe avant
+    expect(TestBed.inject(ToastService).toasts()[0].text).toContain('temporaire');
+  });
+
   it('un compte ecole arrive dans l\'espace ecole, et on le dit si l\'onglet choisi etait Eleve', async () => {
     const fixture = await setup();
     const toasts = TestBed.inject(ToastService);

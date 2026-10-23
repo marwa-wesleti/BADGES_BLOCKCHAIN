@@ -1,0 +1,14 @@
+<component name="libraryTable">
+  <library name="Maven: com.github.jnr:jnr-enxio:0.32.17" type="java-imported" external-system-id="Maven">
+    <properties groupId="com.github.jnr" artifactId="jnr-enxio" version="0.32.17" />
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/jnr/jnr-enxio/0.32.17/jnr-enxio-0.32.17.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/jnr/jnr-enxio/0.32.17/jnr-enxio-0.32.17-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/github/jnr/jnr-enxio/0.32.17/jnr-enxio-0.32.17-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

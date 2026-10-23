@@ -7,6 +7,9 @@ import { ToastService } from './toast.service';
 import { TokenStore } from './token.store';
 import { ApiBody, ApiResult, User } from '../models';
 
+/** La page ou l'eleve choisit son mot de passe (obligatoire apres une reinitialisation par l'ecole). */
+export const PASSWORD_URL = '/mot-de-passe';
+
 interface LoginResponse extends ApiBody {
   token: string;
   user: User;
@@ -27,8 +30,10 @@ export class AuthService {
   readonly user = signal<User | null>(null);
   readonly isLoggedIn = computed(() => this.user() !== null);
   readonly role = computed(() => this.user()?.role ?? null);
-  /** La page d'accueil de chaque profil : l'espace ecole, l'espace eleve, ou l'accueil public. */
-  readonly homeUrl = computed(() => (this.role() === 'ECOLE' ? '/ecole' : this.role() === 'ELEVE' ? '/eleve' : '/'));
+  /** Mot de passe temporaire : tant qu'il n'est pas remplace, le serveur refuse tout le reste. */
+  readonly mustChangePassword = computed(() => this.user()?.mustChangePassword === true);
+  /** La page d'accueil de chaque profil : l'espace ecole, l'espace eleve, ou l'accueil public (ou le changement de mot de passe, s'il est obligatoire). */
+  readonly homeUrl = computed(() => this.mustChangePassword() ? PASSWORD_URL : this.role() === 'ECOLE' ? '/ecole' : this.role() === 'ELEVE' ? '/eleve' : '/');
 
   private restoring: Promise<void> | null = null;
 
@@ -64,6 +69,30 @@ export class AuthService {
       this.startSession(result.data);
     }
     return result;
+  }
+
+  /** Choisit un nouveau mot de passe ; le serveur redemande l'actuel (le temporaire, apres une reinitialisation). */
+  async changePassword(currentPassword: string, newPassword: string): Promise<ApiResult<{ user: User }>> {
+    const result = await this.api.call<{ user: User }>('POST', '/api/auth/change-password', { currentPassword, newPassword });
+    if (result.ok) {
+      this.user.set(result.data.user);
+    }
+    return result;
+  }
+
+  /**
+   * Le serveur a refuse une action parce que le mot de passe est temporaire (l'ecole vient peut-etre de le reinitialiser
+   * alors que la personne etait deja connectee) : on renvoie vers la page de changement, avec une explication.
+   */
+  requirePasswordChange(): void {
+    const user = this.user();
+    if (user && !user.mustChangePassword) {
+      this.user.set({ ...user, mustChangePassword: true });
+      this.toasts.warn('L’école a réinitialisé votre mot de passe : choisissez-en un nouveau pour continuer.');
+    }
+    if (this.router.url !== PASSWORD_URL) {
+      void this.router.navigateByUrl(PASSWORD_URL);
+    }
   }
 
   private startSession(data: LoginResponse): void {

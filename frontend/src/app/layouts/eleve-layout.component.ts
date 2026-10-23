@@ -22,6 +22,7 @@ import { IconComponent } from '../shared/icon.component';
           @if (auth.user(); as user) {
             <span class="user-chip"><span class="avatar" aria-hidden="true">{{ user.username.charAt(0).toUpperCase() }}</span> {{ user.username }}</span>
           }
+          <a routerLink="/mot-de-passe" class="btn btn-ghost btn-sm" id="linkPassword"><app-icon name="lock" [size]="18" /> Mot de passe</a>
           <button type="button" class="btn btn-ghost btn-sm" id="btnLogout" (click)="auth.logout()"><app-icon name="logout" [size]="18" /> Se déconnecter</button>
         </div>
       </div>

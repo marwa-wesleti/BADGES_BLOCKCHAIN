@@ -93,8 +93,35 @@ public class AuthService {
             temporary.append(TEMP_ALPHABET.charAt(random.nextInt(TEMP_ALPHABET.length())));
         }
         student.setPasswordHash(encoder.encode(temporary));
+        student.setMustChangePassword(true); // l'eleve devra choisir le sien des sa premiere connexion
         users.save(student);
         return temporary.toString();
+    }
+
+    /**
+     * L'eleve remplace son mot de passe (le temporaire donne par l'ecole, ou l'actuel s'il le souhaite).
+     * L'ancien mot de passe est redemande : un jeton vole ne suffit pas a prendre le compte. Les essais ratés sont freines
+     * comme a la connexion. Le mot de passe de l'ecole vient du .env (il y est reapplique a chaque demarrage) : pas ici.
+     */
+    public User changePassword(String email, String currentPassword, String newPassword, String clientAddress) {
+        User user = users.findByEmail(UserService.normalize(email)).orElseThrow(() -> ApiException.unauthorized("Connexion requise"));
+        if (user.getRole() != Role.ELEVE) {
+            throw ApiException.forbidden("Le mot de passe de l'ecole se change dans le fichier .env du serveur");
+        }
+        String throttleKey = "changement|" + user.getEmail() + "|" + clientAddress;
+        throttle.check(throttleKey);
+        if (user.getPasswordHash() == null || !encoder.matches(currentPassword, user.getPasswordHash())) {
+            throttle.recordFailure(throttleKey);
+            throw ApiException.unauthorized("Mot de passe actuel incorrect");
+        }
+        validatePassword(newPassword);
+        if (newPassword.equals(currentPassword)) {
+            throw ApiException.badRequest("Le nouveau mot de passe doit etre different de l'actuel");
+        }
+        throttle.reset(throttleKey);
+        user.setPasswordHash(encoder.encode(newPassword));
+        user.setMustChangePassword(false);
+        return users.save(user);
     }
 
     private static void validatePassword(String password) {

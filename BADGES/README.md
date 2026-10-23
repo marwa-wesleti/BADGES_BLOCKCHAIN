@@ -70,7 +70,7 @@ badges-blockchain/
 ├── frontend/                                ── L'INTERFACE WEB (Angular 19) ──
 │   ├── src/app/pages/                       pages publiques (accueil, connexion, inscription, vérifier), espace école, espace élève
 │   ├── src/app/core/                        services : API, authentification (JWT), journal, gardes de routes
-│   ├── src/app/**/*.spec.ts                 134 tests (Karma / Jasmine)
+│   ├── src/app/**/*.spec.ts                 160 tests (Karma / Jasmine)
 │   ├── angular.json, proxy.conf.json        build vers src/main/resources/static ; proxy /api en développement
 ├── src/main/resources/
 │   ├── contracts/BadgeRegistry.bin|.abi.json   contrat compilé (généré par "npm run export")
@@ -139,7 +139,7 @@ L'interface est une application **Angular 19** (composants autonomes, signaux, s
 ```bash
 cd frontend
 npm install          # une seule fois
-npm test             # 134 tests (Karma / Jasmine, nécessite Chrome ou Edge)
+npm test             # 160 tests (Karma / Jasmine, nécessite Chrome ou Edge)
 npm run build        # compile l'interface directement dans src/main/resources/static/
 npm start            # développement avec rechargement : http://localhost:4200 (l'API Spring doit tourner sur le port 3000)
 ```
@@ -167,8 +167,9 @@ Sur la page, dans l'ordre :
 4. **Cliquer une 2e fois** sur « Délivrer le badge » : réponse `409`. Même si vous supprimez la ligne dans la table `badges`, le serveur lit d'abord le contrat (lecture gratuite) et répond `409` : « Ce badge existe déjà sur la blockchain ». Pour voir le **contrat** refuser lui-même, arrêtez le serveur, mettez dans `.env` la clé d'**un autre portefeuille** (pas celui du déploiement), relancez et délivrez le badge d'**un autre cours** (créez-le et marquez-le terminé) : réponse `422` avec le message du `require()` (« Seule l'ecole peut effectuer cette action »). Remettez ensuite la bonne clé.
 5. **Vérifier le badge** : `valid: true`, lu directement dans le contrat à partir de l'adresse du portefeuille.
 6. **Émettre un document** (menu *Documents* de l'école) : titre, type, élève destinataire (ou archive de l'école), puis un texte ou un fichier. L'empreinte est calculée dans le navigateur, une confirmation rappelle que l'écriture est publique et permanente, puis l'empreinte est gravée. Le document apparaît dans le registre de l'école, avec son **certificat PDF** (empreinte, date du bloc, transaction, contrat, QR code).
-7. **Élève** : *Mes documents* montre ce que l'école lui a remis ; il télécharge le certificat ou copie le lien de vérification.
-8. **Vérifier**, sans compte : ouvrez le lien du QR code. La page dit si l'empreinte est gravée ; choisissez ensuite le fichier : « intact », ou « pas celui du certificat » dès qu'une lettre diffère.
+7. **Mot de passe temporaire** : dans *Élèves*, le bouton « Mot de passe » génère un mot de passe de 12 caractères, affiché une seule fois ; l'école le communique à l'élève (aucun e-mail n'est envoyé). À sa première connexion, l'élève est envoyé sur la page « Choisissez votre mot de passe » et ne peut rien faire d'autre avant de l'avoir changé : le serveur répond `403` à toutes les autres routes, même avec une session ouverte avant la réinitialisation.
+8. **Élève** : *Mes documents* montre ce que l'école lui a remis ; il télécharge le certificat ou copie le lien de vérification.
+9. **Vérifier**, sans compte : ouvrez le lien du QR code. La page dit si l'empreinte est gravée ; choisissez ensuite le fichier : « intact », ou « pas celui du certificat » dès qu'une lettre diffère.
 
 ## API
 
@@ -177,6 +178,7 @@ Toutes les routes `/api/**` demandent un jeton (`Authorization: Bearer …`), sa
 | Méthode | URL | Qui | Rôle |
 |---|---|---|---|
 | POST | `/api/auth/register` | public | Inscription élève : crée le portefeuille, renvoie la clé privée une seule fois (`{username, email, password}`) |
+| POST | `/api/auth/change-password` | élève | L'élève choisit son mot de passe (`{currentPassword, newPassword}`). Obligatoire après une réinitialisation par l'école |
 | POST | `/api/auth/login` | public | Connexion (`{email, password}`) : jeton et rôle. 5 échecs en 10 minutes bloquent temporairement |
 | GET | `/api/config` | public | Réseau, adresses des contrats (jamais de secret) |
 | GET | `/api/me` | connecté | Profil, cours terminés, badges |
@@ -187,7 +189,7 @@ Toutes les routes `/api/**` demandent un jeton (`Authorization: Bearer …`), sa
 | GET | `/api/badges/verify/{wallet}/{courseId}` | public | Vérifie un badge dans le contrat |
 | GET | `/api/nft-badges/verify/{wallet}/{courseId}` | public | Vérifie un badge NFT dans le contrat |
 | GET | `/api/school/overview`, `/wallet`, `/students` | école | Chiffres, adresse et solde de l'école, élèves |
-| POST | `/api/school/students/{id}/reset-password` | école | Mot de passe temporaire, affiché une seule fois |
+| POST | `/api/school/students/{id}/reset-password` | école | Mot de passe temporaire, affiché une seule fois ; l'élève devra le remplacer à sa première connexion |
 | POST | `/api/documents` | école | Émet un document : grave l'empreinte et l'enregistre (`{title, type, studentId?, hash}`) |
 | GET | `/api/school/documents` | école | Registre de tous les documents émis |
 | GET | `/api/me/documents` | connecté | Documents remis à la personne connectée |
@@ -203,9 +205,9 @@ Codes de réponse à connaître : `401` jeton absent ou invalide, `403` mauvais 
 
 | Niveau | Commande | Ce que ça prouve | Ce que ça ne prouve pas |
 |---|---|---|---|
-| **0. L'interface** | `cd frontend && npm test` | Les pages, l'authentification, les gardes, le journal, la page Documents et le téléchargement du certificat fonctionnent (134 tests) | Que le vrai serveur réponde |
+| **0. L'interface** | `cd frontend && npm test` | Les pages, l'authentification, les gardes, le journal, la page Documents, le changement de mot de passe et le téléchargement du certificat fonctionnent (160 tests) | Que le vrai serveur réponde |
 | **1. Le contrat** | `cd solidity && npm test` | Les règles des contrats marchent (24 tests, refus compris) | Que l'application Java l'appelle bien |
-| **2. L'application** | `mvn test` | Authentification, droits par rôle, badges, NFT, documents et certificat PDF (21 tests, base H2 en mémoire, Ethereum **simulé**) | Que le vrai réseau répond |
+| **2. L'application** | `mvn test` | Authentification, droits par rôle, mot de passe temporaire, badges, NFT, documents et certificat PDF (26 tests, base H2 en mémoire, Ethereum **simulé**) | Que le vrai réseau répond |
 | **3. Java + vrai contrat** | voir ci-dessous | web3j déploie et appelle le **vrai** contrat compilé sur un nœud local | Le comportement de Sepolia (délais, frais) |
 
 Niveau 3 (deux terminaux) :

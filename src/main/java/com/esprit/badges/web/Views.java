@@ -34,6 +34,7 @@ final class Views {
         m.put("email", u.getEmail());
         m.put("walletAddress", u.getWalletAddress());
         m.put("role", u.getRole());
+        m.put("mustChangePassword", u.isMustChangePassword());
         return m;
     }
 

@@ -75,6 +75,7 @@ type Action = 'complete' | 'badge' | 'nft';
                     <b>{{ row.student.username }}</b>
                     <small class="cell-sub">{{ row.student.email }}</small>
                     @if (!row.student.hasPassword) { <span class="pill pill-warn">sans mot de passe</span> }
+                    @if (row.student.mustChangePassword) { <span class="pill pill-warn" data-flag="temporary">mot de passe temporaire</span> }
                   </td>
                   <td>
                     <span class="mono">{{ short(row.student.walletAddress) }}</span>
@@ -118,7 +119,7 @@ type Action = 'complete' | 'badge' | 'nft';
       @if (resetFor(); as student) {
         <h2>Mot de passe de {{ student.username }}</h2>
         @if (!tempPassword()) {
-          <p>Un mot de passe temporaire va être généré. <b>L’ancien ne fonctionnera plus.</b> Vous le communiquerez à l’élève, qui pourra se connecter avec.</p>
+          <p>Un mot de passe temporaire va être généré. <b>L’ancien ne fonctionnera plus.</b> Vous le communiquerez à l’élève. À sa première connexion, il devra <b>choisir son propre mot de passe</b> avant de pouvoir utiliser son espace.</p>
           <div class="modal-actions">
             <button type="button" class="btn btn-ghost" (click)="closeReset()">Annuler</button>
             <button type="button" class="btn btn-primary" id="btnConfirmReset" [disabled]="resetBusy()" (click)="confirmReset(student)">

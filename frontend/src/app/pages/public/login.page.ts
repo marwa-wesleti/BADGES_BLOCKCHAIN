@@ -1,7 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { AuthService } from '../../core/auth.service';
+import { AuthService, PASSWORD_URL } from '../../core/auth.service';
 import { safeReturnUrl } from '../../core/guards';
 import { ToastService } from '../../core/toast.service';
 import { Role } from '../../models';
@@ -90,6 +90,12 @@ export class LoginPage {
     if (role !== this.profile()) {
       // on suit le vrai profil du compte, mais on le dit : sinon la personne ne comprend pas ou elle atterrit
       this.toasts.info(role === 'ECOLE' ? 'Ce compte est un compte école : voici votre espace école.' : 'Ce compte est un compte élève : voici votre espace élève.');
+    }
+    if (result.data.user.mustChangePassword) {
+      // mot de passe temporaire donne par l'ecole : il faut en choisir un avant toute autre chose
+      this.toasts.info('Votre mot de passe est temporaire : choisissez le vôtre pour continuer.');
+      await this.router.navigateByUrl(PASSWORD_URL);
+      return;
     }
     const back = safeReturnUrl(this.route.snapshot.queryParamMap.get('retour'), role);
     await this.router.navigateByUrl(back ?? (role === 'ECOLE' ? '/ecole' : '/eleve'));

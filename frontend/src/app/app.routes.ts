@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { guestGuard, roleGuard } from './core/guards';
+import { guestGuard, passwordGuard, roleGuard } from './core/guards';
 
 const SITE = 'Badges blockchain';
 
@@ -16,6 +16,7 @@ export const routes: Routes = [
       { path: '', title: SITE, loadComponent: () => import('./pages/public/home.page').then((m) => m.HomePage) },
       { path: 'connexion', title: `Connexion · ${SITE}`, canActivate: [guestGuard], loadComponent: () => import('./pages/public/login.page').then((m) => m.LoginPage) },
       { path: 'inscription', title: `Inscription · ${SITE}`, canActivate: [guestGuard], loadComponent: () => import('./pages/public/register.page').then((m) => m.RegisterPage) },
+      { path: 'mot-de-passe', title: `Mot de passe · ${SITE}`, canActivate: [passwordGuard], loadComponent: () => import('./pages/eleve/change-password.page').then((m) => m.ChangePasswordPage) },
       { path: 'verifier', title: `Vérifier · ${SITE}`, loadComponent: () => import('./pages/public/verify.page').then((m) => m.VerifyPage) },
     ],
   },

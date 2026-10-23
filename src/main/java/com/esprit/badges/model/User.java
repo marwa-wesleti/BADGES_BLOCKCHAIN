@@ -44,6 +44,12 @@ public class User {
     @Column(length = 100)
     private String passwordHash;
 
+    /**
+     * Vrai apres une reinitialisation par l'ecole : le mot de passe est temporaire et l'eleve doit en choisir un autre.
+     * Boolean (et non boolean) : les anciennes lignes n'ont pas cette colonne, vide = faux.
+     */
+    private Boolean mustChangePassword;
+
     // EAGER : volontairement simple pour un petit projet (evite les erreurs de chargement paresseux)
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_completed_courses",
@@ -81,5 +87,7 @@ public class User {
     public Role getRole() { return role == null ? Role.ELEVE : role; }
     public String getPasswordHash() { return passwordHash; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public boolean isMustChangePassword() { return Boolean.TRUE.equals(mustChangePassword); }
+    public void setMustChangePassword(boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
     public void setRole(Role role) { this.role = role; }
 }

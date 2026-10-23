@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { AuthService } from './auth.service';
+import { AuthService, PASSWORD_URL } from './auth.service';
 import { Role } from '../models';
 
 /**
@@ -15,7 +15,22 @@ export const roleGuard = (role: Role): CanActivateFn => async (_route, state) =>
   if (!user) {
     return router.createUrlTree(['/connexion'], { queryParams: { retour: state.url } });
   }
+  if (user.mustChangePassword) {
+    return router.parseUrl(PASSWORD_URL); // mot de passe temporaire : rien d'autre n'est accessible avant de l'avoir change
+  }
   return user.role === role ? true : router.parseUrl(auth.homeUrl());
+};
+
+/** La page de changement de mot de passe : reservee aux eleves connectes (le mot de passe de l'ecole se change dans .env). */
+export const passwordGuard: CanActivateFn = async () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  await auth.ready();
+  const user = auth.user();
+  if (!user) {
+    return router.createUrlTree(['/connexion']);
+  }
+  return user.role === 'ELEVE' ? true : router.parseUrl(auth.homeUrl());
 };
 
 /** Connexion et inscription n'ont pas de sens pour quelqu'un deja connecte : on l'envoie dans son espace. */

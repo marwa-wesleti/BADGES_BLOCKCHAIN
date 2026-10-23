@@ -154,13 +154,17 @@ describe('EcoleStudentsPage', () => {
     expect((page().querySelector('dialog') as HTMLDialogElement).open).toBeTrue();
     expect(text(page(), 'dialog')).toContain('Mot de passe de eric');
     expect(text(page(), 'dialog')).toContain('L’ancien ne fonctionnera plus');
+    expect(text(page(), 'dialog')).toContain('choisir son propre mot de passe'); // l'eleve devra le remplacer a sa premiere connexion
+    expect(rowOf('eric').querySelector('[data-flag="temporary"]')).toBeNull();
 
     click(page(), '#btnConfirmReset');
     http.expectOne('/api/school/students/14/reset-password').flush({ success: true, temporaryPassword: 'Abcdefgh2345', warning: 'w' });
     await tick();
-    http.expectOne('/api/school/students').flush(STUDENTS);
+    // la liste rechargee montre que le mot de passe de eric est desormais temporaire
+    http.expectOne('/api/school/students').flush({ success: true, students: STUDENTS.students.map((s) => (s.id === 14 ? { ...s, hasPassword: true, mustChangePassword: true } : s)) });
     await settle(fixture);
     expect(text(page(), '#tempPassword')).toBe('Abcdefgh2345');
+    expect(text(rowOf('eric').querySelector('[data-flag="temporary"]') as HTMLElement)).toBe('mot de passe temporaire');
 
     // le mot de passe temporaire n'a pas ete mis dans le journal des echanges
     expect(JSON.stringify(TestBed.inject(JournalService).entries())).not.toContain('Abcdefgh2345');

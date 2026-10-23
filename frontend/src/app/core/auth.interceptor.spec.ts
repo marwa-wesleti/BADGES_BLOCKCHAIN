@@ -71,6 +71,24 @@ describe('authInterceptor', () => {
     expect(auth.expire).not.toHaveBeenCalled();
   });
 
+  it('un 403 "mot de passe a changer" renvoie vers la page de changement, sans deconnecter', () => {
+    tokens.set('valide');
+    spyOn(auth, 'expire');
+    spyOn(auth, 'requirePasswordChange');
+    client.get('/api/courses').subscribe({ error: () => undefined });
+    http.expectOne('/api/courses').flush({ success: false, passwordChangeRequired: true }, { status: 403, statusText: 'Forbidden' });
+    expect(auth.requirePasswordChange).toHaveBeenCalled();
+    expect(auth.expire).not.toHaveBeenCalled();
+  });
+
+  it('un 403 ordinaire ne renvoie pas vers le changement de mot de passe', () => {
+    tokens.set('valide');
+    spyOn(auth, 'requirePasswordChange');
+    client.get('/api/school/students').subscribe({ error: () => undefined });
+    http.expectOne('/api/school/students').flush({ success: false, message: "Action reservee a l'ecole" }, { status: 403, statusText: 'Forbidden' });
+    expect(auth.requirePasswordChange).not.toHaveBeenCalled();
+  });
+
   it('un 403 ne deconnecte pas : on est connecte, simplement pas autorise', () => {
     tokens.set('valide');
     spyOn(auth, 'expire');

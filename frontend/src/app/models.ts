@@ -37,6 +37,8 @@ export interface User {
   email: string;
   walletAddress: string;
   role: Role;
+  /** Vrai apres une reinitialisation par l'ecole : l'eleve doit choisir son propre mot de passe avant de continuer. */
+  mustChangePassword?: boolean;
   completedCourses?: Course[];
 }
 
