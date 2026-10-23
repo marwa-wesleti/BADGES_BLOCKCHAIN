@@ -1,3 +1,5 @@
+import { DocumentType } from './models';
+
 /** Raccourcit un long identifiant : 0x5fbdb231…180aa3 */
 export function short(value: string | null | undefined): string {
   if (!value) {
@@ -53,6 +55,35 @@ export function isSha256(value: string | null | undefined): boolean {
 export function verificationLink(type: 'registre' | 'nft', wallet: string, courseId: number | string): string {
   const query = new URLSearchParams({ type, adresse: wallet, cours: String(courseId) });
   return `${window.location.origin}${window.location.pathname}#/verifier?${query.toString()}`;
+}
+
+/** Le lien public qui verifie une empreinte de document (celui du QR code du certificat). */
+export function documentVerificationLink(hash: string): string {
+  const query = new URLSearchParams({ type: 'document', hash });
+  return `${window.location.origin}${window.location.pathname}#/verifier?${query.toString()}`;
+}
+
+export const DOCUMENT_TYPES: { value: DocumentType; label: string }[] = [
+  { value: 'DIPLOME', label: 'Diplôme' },
+  { value: 'RELEVE', label: 'Relevé de notes' },
+  { value: 'ATTESTATION', label: 'Attestation' },
+  { value: 'AUTRE', label: 'Autre document' },
+];
+
+export function documentTypeLabel(type: DocumentType): string {
+  return DOCUMENT_TYPES.find((t) => t.value === type)?.label ?? type;
+}
+
+/** Enregistre un fichier recu de l'API (un PDF par exemple) comme le ferait un lien de telechargement. */
+export function saveBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /** Un solde en ETH, avec assez de decimales pour ne pas afficher 0 quand il reste un peu. */

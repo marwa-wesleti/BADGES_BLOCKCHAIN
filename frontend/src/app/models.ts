@@ -76,6 +76,23 @@ export interface Overview {
   nftContractAddress: string | null;
 }
 
+export type DocumentType = 'DIPLOME' | 'RELEVE' | 'ATTESTATION' | 'AUTRE';
+
+/** Un document emis par l'ecole : on ne garde que son titre et son empreinte, jamais son contenu. */
+export interface DocumentRecord {
+  id: string;
+  title: string;
+  type: DocumentType;
+  hash: string;
+  /** Eleve a qui il est remis ; null = archive de l'ecole. */
+  student: User | null;
+  contractAddress: string;
+  txHash: string;
+  blockNumber: number;
+  blockTime: string;
+  createdAt: string;
+}
+
 export type EntryKind = 'pending' | 'ok' | 'warn' | 'err';
 
 /** Une ligne "libelle : valeur" du journal ; href = lien (Etherscan) si disponible. */

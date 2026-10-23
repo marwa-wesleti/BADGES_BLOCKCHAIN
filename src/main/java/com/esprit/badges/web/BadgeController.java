@@ -1,6 +1,9 @@
 package com.esprit.badges.web;
 
 import com.esprit.badges.model.Badge;
+import com.esprit.badges.model.Role;
+import com.esprit.badges.security.AuthUser;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import com.esprit.badges.service.BadgeService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -43,9 +46,12 @@ public class BadgeController {
                 "links", Views.txLinks(badge.getTxHash(), badge.getContractAddress()));
     }
 
-    /** GET /api/badges/user/{email} */
+    /** GET /api/badges/user/{email} : un eleve ne voit que les siens, l'ecole voit tout. */
     @GetMapping("/user/{email}")
-    public Map<String, Object> listForUser(@PathVariable String email) {
+    public Map<String, Object> listForUser(@PathVariable String email, @AuthenticationPrincipal AuthUser me) {
+        if (me.role() != Role.ECOLE && !me.email().equalsIgnoreCase(email.trim())) {
+            throw ApiException.forbidden("Vous ne pouvez consulter que vos propres badges");
+        }
         return Api.ok("badges", badgeService.listForUser(email).stream().map(Views::badge).toList());
     }
 

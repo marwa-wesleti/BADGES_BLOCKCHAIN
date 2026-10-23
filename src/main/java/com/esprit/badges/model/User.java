@@ -2,6 +2,8 @@ package com.esprit.badges.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -33,6 +35,15 @@ public class User {
     @Column(nullable = false)
     private String walletAddress;
 
+    /** Profil du compte. Vide = ancien compte cree avant l'authentification : il est traite comme un eleve. */
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private Role role;
+
+    /** Mot de passe haché (BCrypt), jamais en clair. Vide = ancien compte : l'ecole peut lui en attribuer un. */
+    @Column(length = 100)
+    private String passwordHash;
+
     // EAGER : volontairement simple pour un petit projet (evite les erreurs de chargement paresseux)
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_completed_courses",
@@ -48,6 +59,12 @@ public class User {
         this.walletAddress = walletAddress;
     }
 
+    public User(String username, String email, String walletAddress, Role role, String passwordHash) {
+        this(username, email, walletAddress);
+        this.role = role;
+        this.passwordHash = passwordHash;
+    }
+
     public boolean hasCompleted(Course course) {
         return completedCourses.stream().anyMatch(c -> c.getId().equals(course.getId()));
     }
@@ -61,4 +78,8 @@ public class User {
     public String getEmail() { return email; }
     public String getWalletAddress() { return walletAddress; }
     public Set<Course> getCompletedCourses() { return completedCourses; }
+    public Role getRole() { return role == null ? Role.ELEVE : role; }
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
+    public void setRole(Role role) { this.role = role; }
 }

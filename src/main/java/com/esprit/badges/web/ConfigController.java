@@ -34,6 +34,7 @@ public class ConfigController {
                 "network", network,
                 "chainId", props.chainId(),
                 "contractAddress", props.contractAddress(),
+                "nftContractAddress", props.nftContractAddress(),
                 "explorer", explorer);
         return body;
     }

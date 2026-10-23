@@ -105,7 +105,7 @@ final class DatabaseInitializer {
         }
     }
 
-    /** Lit d'abord le fichier .env, puis les variables d'environnement du systeme (meme logique que SetupMain). */
+    /** Lit le fichier .env s'il existe. */
     private static Properties loadEnv() {
         Properties env = new Properties();
         Path envFile = Path.of(".env");
@@ -119,12 +119,13 @@ final class DatabaseInitializer {
         return env;
     }
 
+    /** Les variables d'environnement du systeme passent avant le fichier .env, comme dans Spring Boot. */
     private static String value(Properties env, String key, String fallback) {
-        String fromFile = env.getProperty(key);
-        if (fromFile != null && !fromFile.isBlank()) {
-            return fromFile.trim();
-        }
         String fromSystem = System.getenv(key);
-        return fromSystem == null || fromSystem.isBlank() ? fallback : fromSystem.trim();
+        if (fromSystem != null && !fromSystem.isBlank()) {
+            return fromSystem.trim();
+        }
+        String fromFile = env.getProperty(key);
+        return fromFile == null || fromFile.isBlank() ? fallback : fromFile.trim();
     }
 }

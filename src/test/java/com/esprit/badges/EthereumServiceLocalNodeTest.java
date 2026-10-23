@@ -30,7 +30,7 @@ class EthereumServiceLocalNodeTest {
     private static final String STRANGER_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
 
     private static EthereumService service(String key, String contract) {
-        return new EthereumService(new EthereumProperties(RPC, key, contract, CHAIN_ID));
+        return new EthereumService(new EthereumProperties(RPC, key, contract, CHAIN_ID, null));
     }
 
     @Test
@@ -81,5 +81,49 @@ class EthereumServiceLocalNodeTest {
         assertThatThrownBy(() -> stranger.anchorDocument(v2))
                 .isInstanceOf(ContractRevertException.class)
                 .hasMessageContaining("Seule l'ecole");
+    }
+
+    @Test
+    void deployeLeContratNftPuisCreeDesJetons() throws Exception {
+        String bytecode;
+        try (InputStream in = getClass().getResourceAsStream("/contracts/BadgeNFT.bin")) {
+            bytecode = new String(in.readAllBytes(), StandardCharsets.UTF_8).trim();
+        }
+
+        String nft = service(SCHOOL_KEY, null).deployContract(bytecode);
+        assertThat(nft).matches("^0x[0-9a-fA-F]{40}$");
+
+        EthereumService school = new EthereumService(new EthereumProperties(RPC, SCHOOL_KEY, null, CHAIN_ID, nft));
+        EthereumService stranger = new EthereumService(new EthereumProperties(RPC, STRANGER_KEY, null, CHAIN_ID, nft));
+        String alice = school.createWallet().address();
+
+        // --- aucun jeton au depart, puis le contrat en cree un : numero lu dans l'evenement Transfer du recu
+        assertThat(school.getNftBadge(alice, 1)).isEmpty();
+        EthereumService.NftMint mint = school.issueNftBadge(alice, 1, "Introduction à la blockchain");
+        assertThat(mint.tokenId()).isEqualTo(1);
+        assertThat(mint.tx().transactionHash()).matches("^0x[0-9a-f]{64}$");
+        assertThat(mint.tx().blockNumber()).isPositive();
+
+        // --- l'eleve est proprietaire du jeton, la date vient du contrat
+        EthereumService.NftBadgeOnChain onChain = school.getNftBadge(alice, 1).orElseThrow();
+        assertThat(onChain.tokenId()).isEqualTo(1);
+        assertThat(onChain.owner()).isEqualToIgnoringCase(alice);
+        assertThat(onChain.issuedAt()).isAfter(Instant.parse("2024-01-01T00:00:00Z"));
+        assertThat(school.getNftBadge(alice, 2)).isEmpty(); // autre cours : pas de jeton
+
+        // --- un deuxieme cours donne le jeton suivant
+        assertThat(school.issueNftBadge(alice, 2, "Solidity").tokenId()).isEqualTo(2);
+
+        // --- le contrat applique ses regles, et on recupere le message du require()
+        assertThatThrownBy(() -> school.issueNftBadge(alice, 1, "Doublon"))
+                .isInstanceOf(ContractRevertException.class)
+                .hasMessageContaining("Badge deja delivre pour ce cours");
+        assertThatThrownBy(() -> stranger.issueNftBadge(alice, 3, "Faux badge"))
+                .isInstanceOf(ContractRevertException.class)
+                .hasMessageContaining("Seule l'ecole peut effectuer cette action");
+        assertThatThrownBy(() -> school.issueNftBadge(alice, 3, "Titre \"pirate\""))
+                .isInstanceOf(ContractRevertException.class)
+                .hasMessageContaining("Titre invalide");
+        assertThat(school.getNftBadge(alice, 3)).isEmpty();
     }
 }

@@ -30,7 +30,18 @@ public class ProofService {
      * Le reseau y ajoute la date du bloc, impossible a falsifier ensuite.
      */
     public Anchor anchor(String content) {
-        byte[] hash = sha256Bytes(content);
+        return anchorHash(sha256Bytes(content));
+    }
+
+    /**
+     * Meme ancrage, quand l'empreinte a deja ete calculee ailleurs (dans le navigateur) : le document, texte
+     * ou fichier, ne quitte alors jamais l'ordinateur de la personne.
+     */
+    public Anchor anchorHex(String sha256Hex) {
+        return anchorHash(parseHash(sha256Hex));
+    }
+
+    private Anchor anchorHash(byte[] hash) {
         Optional<Instant> existing = ethereum.getDocumentAnchoredAt(hash);
         if (existing.isPresent()) {
             throw ApiException.conflict("Cette empreinte est deja gravee depuis " + existing.get());
@@ -43,9 +54,25 @@ public class ProofService {
      * Un seul caractere different = empreinte totalement differente = valid false.
      */
     public Check verify(String content) {
-        byte[] hash = sha256Bytes(content);
+        return verifyHash(sha256Bytes(content));
+    }
+
+    /** Verification d'une empreinte deja calculee (64 caracteres hexadecimaux). */
+    public Check verifyHex(String sha256Hex) {
+        return verifyHash(parseHash(sha256Hex));
+    }
+
+    private Check verifyHash(byte[] hash) {
         Optional<Instant> anchoredAt = ethereum.getDocumentAnchoredAt(hash);
         return new Check(anchoredAt.isPresent(), HexFormat.of().formatHex(hash), anchoredAt.orElse(null));
+    }
+
+    /** 64 caracteres hexadecimaux (32 octets) : rien d'autre n'est accepte, pour ne pas graver n'importe quoi. */
+    static byte[] parseHash(String hex) {
+        if (hex == null || !hex.matches("^[0-9a-fA-F]{64}$")) {
+            throw ApiException.badRequest("Empreinte invalide : 64 caracteres hexadecimaux attendus (SHA-256)");
+        }
+        return HexFormat.of().parseHex(hex);
     }
 
     public static String sha256(String text) {

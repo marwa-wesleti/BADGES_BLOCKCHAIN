@@ -22,9 +22,11 @@ class FakeEthereumService extends EthereumService {
 
     final Map<String, Instant> badgeDates = new HashMap<>();
     final Map<String, Instant> documentDates = new HashMap<>();
+    final Map<String, NftBadgeOnChain> nftBadges = new HashMap<>();
     int walletCount = 0;
     int issueCalls = 0;
     int anchorCalls = 0;
+    int nftIssueCalls = 0;
     boolean callerIsOwner = true; // false = simule un appel qui ne vient pas de l'ecole
 
     FakeEthereumService(EthereumProperties props) {
@@ -33,6 +35,19 @@ class FakeEthereumService extends EthereumService {
 
     static String addressNumber(int n) {
         return String.format("0x%040x", n);
+    }
+
+    static final String SCHOOL_ADDRESS = "0x00000000000000000000000000000000000051c0";
+
+    /** L'adresse de l'ecole : le vrai service la calcule depuis la cle privee, que les tests n'ont pas. */
+    @Override
+    public String schoolAddress() {
+        return SCHOOL_ADDRESS;
+    }
+
+    @Override
+    public java.math.BigDecimal schoolBalanceEth() {
+        return new java.math.BigDecimal("1.5");
     }
 
     @Override
@@ -55,6 +70,24 @@ class FakeEthereumService extends EthereumService {
     @Override
     public Optional<Instant> getBadgeIssuedAt(String studentAddress, long courseId) {
         return Optional.ofNullable(badgeDates.get(studentAddress.toLowerCase(Locale.ROOT) + "/" + courseId));
+    }
+
+    /** Reproduit BadgeNFT : un jeton numerote a partir de 1, un seul par eleve et par cours, cree par l'ecole seule. */
+    @Override
+    public NftMint issueNftBadge(String studentAddress, long courseId, String title) {
+        requireOwner();
+        String key = studentAddress.toLowerCase(Locale.ROOT) + "/" + courseId;
+        if (nftBadges.containsKey(key)) {
+            throw new ContractRevertException("Badge deja delivre pour ce cours");
+        }
+        long tokenId = ++nftIssueCalls;
+        nftBadges.put(key, new NftBadgeOnChain(tokenId, Instant.parse(TIME), studentAddress.toLowerCase(Locale.ROOT)));
+        return new NftMint(new TxResult("0xnft" + tokenId, 300 + tokenId, TIME), tokenId);
+    }
+
+    @Override
+    public Optional<NftBadgeOnChain> getNftBadge(String studentAddress, long courseId) {
+        return Optional.ofNullable(nftBadges.get(studentAddress.toLowerCase(Locale.ROOT) + "/" + courseId));
     }
 
     @Override

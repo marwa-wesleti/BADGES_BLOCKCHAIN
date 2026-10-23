@@ -22,6 +22,8 @@ public class ProofController {
 
     public record VerifyRequest(@NotNull String content) { }
 
+    public record HashRequest(@NotBlank String hash) { }
+
     private final ProofService proofService;
     private final EthereumProperties props;
 
@@ -33,7 +35,16 @@ public class ProofController {
     /** POST /api/proofs  { content } : grave l'empreinte SHA-256 du texte dans le smart contract. */
     @PostMapping
     public ResponseEntity<Map<String, Object>> anchor(@Valid @RequestBody AnchorRequest request) {
-        ProofService.Anchor anchor = proofService.anchor(request.content());
+        return created(proofService.anchor(request.content()));
+    }
+
+    /** POST /api/proofs/hash  { hash } : meme chose, avec une empreinte deja calculee (le document ne quitte pas le navigateur). */
+    @PostMapping("/hash")
+    public ResponseEntity<Map<String, Object>> anchorHash(@Valid @RequestBody HashRequest request) {
+        return created(proofService.anchorHex(request.hash()));
+    }
+
+    private ResponseEntity<Map<String, Object>> created(ProofService.Anchor anchor) {
         Map<String, Object> body = Api.ok(
                 "hash", anchor.hash(),
                 "contractAddress", props.contractAddress(),
@@ -50,7 +61,16 @@ public class ProofController {
      */
     @PostMapping("/verify")
     public Map<String, Object> verify(@Valid @RequestBody VerifyRequest request) {
-        ProofService.Check c = proofService.verify(request.content());
+        return checked(proofService.verify(request.content()));
+    }
+
+    /** POST /api/proofs/hash/verify  { hash } : verification publique d'une empreinte calculee dans le navigateur. */
+    @PostMapping("/hash/verify")
+    public Map<String, Object> verifyHash(@Valid @RequestBody HashRequest request) {
+        return checked(proofService.verifyHex(request.hash()));
+    }
+
+    private Map<String, Object> checked(ProofService.Check c) {
         return Api.ok(
                 "valid", c.valid(),
                 "computedHash", c.computedHash(),
